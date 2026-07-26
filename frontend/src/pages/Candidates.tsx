@@ -66,7 +66,7 @@ export function Candidates() {
         <div className="panel-bd">
           {data.groups.length === 0 ? (
             <div className="empty">
-              No candidates yet — complete a mining session first.
+              No candidates yet — eligible alphas appear once a mining session has them.
             </div>
           ) : (
             data.groups.map((g) => (

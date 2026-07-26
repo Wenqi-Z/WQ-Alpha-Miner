@@ -23,6 +23,7 @@ from pydantic import BaseModel
 
 from wq_alpha_miner.clients.cached import CHECK_COLS, IS_CORE_CHECKS, CachedWQClient
 from wq_alpha_miner.session.jobs import (
+    CANDIDATE_PARENT_STATES,
     MINING_KINDS,
     fmt_duration,
     get_auto_restart,
@@ -88,6 +89,13 @@ def _alpha_checks(alpha: dict) -> list[dict]:
     ]
 
 
+def _ui_st(state: str) -> str:
+    st = state.lower()
+    if st in ("sampling", "gp_running", "refining", "stopping"):
+        return "running" if st != "stopping" else "queued"
+    return st
+
+
 def _session_summary_row(s: dict, db_path: Path) -> dict:
     sid = s["id"]
     kind = s.get("kind", "gp")
@@ -108,13 +116,10 @@ def _session_summary_row(s: dict, db_path: Path) -> dict:
         when = f"{int(age_sec / 3600)}h ago"
     else:
         when = f"{int(age_sec / 86400)}d ago"
-    st = s["state"].lower()
-    if st in ("sampling", "gp_running", "refining", "stopping"):
-        st = "running" if st != "stopping" else "queued"
     return {
         "id": sid,
         "kind": kind,
-        "st": st,
+        "st": _ui_st(s["state"]),
         "reg": reg,
         "n": len(alphas),
         "sharpe": round(best_sharpe, 2),
@@ -189,7 +194,8 @@ def api_status() -> dict:
     mining_sessions = [
         s
         for s in list_sessions(db_path, limit=1000)
-        if s.get("kind", "gp") in MINING_KINDS and s.get("state") == "COMPLETED"
+        if s.get("kind", "gp") in MINING_KINDS
+        and s.get("state") in CANDIDATE_PARENT_STATES
     ]
     open_cand = sum(
         len(
@@ -351,7 +357,7 @@ def api_candidates() -> dict:
     groups: list[dict] = []
     for session in list_sessions(db_path, limit=1000):
         kind = session.get("kind", "gp")
-        if kind not in MINING_KINDS or session.get("state") != "COMPLETED":
+        if kind not in MINING_KINDS or session.get("state") not in CANDIDATE_PARENT_STATES:
             continue
         sid = session["id"]
         config = json.loads(session.get("config_json") or "{}")
@@ -379,7 +385,7 @@ def api_candidates() -> dict:
                     "reg": (
                         f"{simulation.get('region', '')} · {simulation.get('universe', '')}"
                     ).strip(" ·"),
-                    "st": "completed",
+                    "st": _ui_st(session["state"]),
                     "items": items,
                 }
             )
@@ -406,8 +412,13 @@ def api_candidates() -> dict:
 def api_improve_candidate(session_id: str, alpha_id: str) -> dict:
     db_path = _db()
     parent = get_session(db_path, session_id)
-    if not parent or parent.get("state") != "COMPLETED":
-        raise HTTPException(400, "Parent mining session must be COMPLETED")
+    if not parent or parent.get("kind", "gp") not in MINING_KINDS:
+        raise HTTPException(400, "Parent mining session not found")
+    if parent.get("state") not in CANDIDATE_PARENT_STATES:
+        raise HTTPException(
+            400,
+            f"Parent mining session state {parent.get('state')!r} cannot be improved",
+        )
     if session_is_running(get_active_session(db_path, kind="improve")):
         raise HTTPException(409, "Improvement job already running")
     config = json.loads(parent.get("config_json") or "{}")

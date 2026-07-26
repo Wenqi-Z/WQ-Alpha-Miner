@@ -55,9 +55,17 @@ export function Topbar() {
     }
   }
 
-  const showStopMining = !!st?.mining?.running
+  // STOPPING is still "running" server-side (busy) but already stop-queued —
+  // hide Stop to avoid double-stop; also hide Start until it fully clears.
+  const miningStopping = st?.mining?.active?.state === 'STOPPING'
+  const improveStopping = st?.improve?.active?.state === 'STOPPING'
+  const miningBusy = !!st?.mining?.running
+  const showStopMining = miningBusy && !miningStopping
   const showStopImprove =
-    !!st?.improve?.running && loc.pathname.startsWith('/improve')
+    !!st?.improve?.running &&
+    !improveStopping &&
+    loc.pathname.startsWith('/improve')
+  const showStartMining = !miningBusy
 
   return (
     <div className="topbar">
@@ -91,7 +99,7 @@ export function Topbar() {
           ■ Stop Improve
         </button>
       )}
-      {!showStopMining && (
+      {showStartMining && (
         <button
           className="btn sm primary"
           type="button"

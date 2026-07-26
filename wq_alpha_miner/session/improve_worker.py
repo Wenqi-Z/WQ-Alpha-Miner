@@ -1,9 +1,9 @@
 """
 session/improve_worker.py
-Standalone LLM improvement job for one GP candidate.
+Standalone LLM improvement job for one mining candidate.
 
-Gated on the seed alpha's source session being COMPLETED. Runs concurrently with a GP job
-(one of each kind at a time).
+May run while the parent mining session is still active, stopping, stopped, or
+completed (one improve job at a time).
 
 Usage
 -----

@@ -32,6 +32,10 @@ RUNNING_STATES = frozenset({"SAMPLING", "GP_RUNNING", "REFINING"})
 STOPPING_STATES = frozenset({"STOPPING"})
 ACTIVE_STATES = RUNNING_STATES | STOPPING_STATES
 TERMINAL_STATES = frozenset({"COMPLETED", "STOPPED", "FAILED", "PENDING"})
+# Mining sessions whose alphas may appear on Candidates / be improved.
+CANDIDATE_PARENT_STATES = frozenset(
+    {"COMPLETED", "STOPPED", "STOPPING", "SAMPLING", "GP_RUNNING"}
+)
 
 # Mining session kinds (as opposed to kind="improve"). A session's kind is
 # fixed at creation time to whichever engine produced it, so historical
