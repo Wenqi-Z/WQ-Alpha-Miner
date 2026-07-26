@@ -1,0 +1,88 @@
+database:
+  path: db/cache.db
+
+mining:
+  # Which worker session/jobs.py spawns for a mining session.
+  # rl is a placeholder — not implemented yet (see session/rl_worker.py).
+  engine: gp  # gp | rl
+
+simulation:
+  instrument_type: EQUITY
+  region: USA
+  universe: TOP3000
+  neutralization: SUBINDUSTRY
+  decay: 6
+  truncation: 0.08
+  delay: 1
+  pasteurization: "ON"
+  nan_handling: "OFF"
+
+data_files:
+  operators: db/operators.parquet
+  data_fields: db/data_fields.parquet
+  data_sets: db/data_sets.parquet
+
+gp_session:
+  # Set n_categories to a fixed integer, or leave null to sample uniformly
+  # from [min_categories, max_categories] each session.
+  n_categories: null
+  min_categories: 1
+  max_categories: 5
+
+# Dataset field categories excluded from GP terminals.
+# These are event-driven datasets whose fields are typed MATRIX by the API
+# but still trigger "does not support event inputs" sim errors at runtime.
+# Remove a category from this list if you want to use its fields in GP.
+excluded_field_categories:
+  - analyst
+  - news
+  - socialmedia
+
+gp:
+  population_size: 50
+  generations: 5
+  tournament_size: 5
+  hall_of_fame: 10
+  n_components: 5
+  n_jobs: 1           # threads — matches WQ 5-concurrent-sim limit
+  init_depth: [2, 6]
+  const_range: [1, 10]
+  parsimony_coefficient: 0.001
+  p_crossover: 0.7
+  p_subtree_mutation: 0.1
+  p_hoist_mutation: 0.1
+  p_point_mutation: 0.1
+  p_point_replace: 0.1
+  verbose: 0
+  random_state: 42
+  log_pct: 0.3
+
+agent:
+  provider: openai
+  model: gpt-5.1        # override with e.g. gpt-5 when available
+  max_iterations: 10   # valid (non-error) iterations per candidate
+  max_sim_errors: 20   # safety bound on uncounted sim-error retries per candidate
+  candidate_filter:
+    min_sharpe: 1.0    # strict >
+    min_fitness: 0.8   # strict >
+  allow_expression_rewrite: true
+  allow_setting_tuning: true   # decay, truncation, neutralization
+  tuning_ranges:
+    decay: [0, 252]
+    truncation: [0.0, 0.15]
+    neutralization: [NONE, MARKET, SECTOR, INDUSTRY, SUBINDUSTRY]
+  langsmith:
+    tracing: true
+    project: wq-alpha-mining
+    # LANGSMITH_API_KEY read from .env
+
+features:
+  - open
+  - high
+  - low
+  - close
+  - volume
+  - vwap
+  - returns
+  - cap
+  - adv20
