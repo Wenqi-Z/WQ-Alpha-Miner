@@ -135,17 +135,9 @@ class CachedWQClient:
         """Wait for live SELF_CORRELATION and persist its final result."""
         while True:
             check_data = self._client.get_alpha_check(alpha_id) or {}
-            checks = (
-                check_data.get("checks")
-                or (check_data.get("is") or {}).get("checks")
-                or []
-            )
+            checks = check_data.get("checks") or (check_data.get("is") or {}).get("checks") or []
             result = next(
-                (
-                    c.get("result")
-                    for c in checks
-                    if c.get("name") == "SELF_CORRELATION"
-                ),
+                (c.get("result") for c in checks if c.get("name") == "SELF_CORRELATION"),
                 None,
             )
             if result not in (None, "PENDING"):
@@ -181,11 +173,7 @@ class CachedWQClient:
 
         try:
             result = self._client.submit_and_poll(alpha_id)
-            status = (
-                result.get("status", str(result))
-                if isinstance(result, dict)
-                else str(result)
-            )
+            status = result.get("status", str(result)) if isinstance(result, dict) else str(result)
             with connect_db(self._db_path) as conn:
                 conn.execute(
                     """UPDATE alpha_results
@@ -272,9 +260,7 @@ class CachedWQClient:
 
         # If not in cache, simulate and persist results to alpha_results.
         api_kwargs = {
-            k: v
-            for k, v in resolved.items()
-            if k not in ("instrument_type", *_SIM_META_KEYS)
+            k: v for k, v in resolved.items() if k not in ("instrument_type", *_SIM_META_KEYS)
         }
 
         alpha_id = self._client.simulate(code=code, wait=True, **api_kwargs)
@@ -285,29 +271,16 @@ class CachedWQClient:
         checks = list((alpha_data.get("is") or {}).get("checks") or [])
         by_name = {c.get("name"): c.get("result") for c in checks}
         by_col = {
-            col: by_name.get(name)
-            for name, col in zip(IS_CORE_CHECKS, CHECK_COLS, strict=True)
+            col: by_name.get(name) for name, col in zip(IS_CORE_CHECKS, CHECK_COLS, strict=True)
         }
         by_col["self_correlation"] = "PENDING"
         stats = alpha_data.get("is", {})
         sharpe = float(stats.get("sharpe", 0.0) or 0.0)
         fitness = float(stats.get("fitness", 0.0) or 0.0)
-        turnover = (
-            float(stats["turnover"])
-            if stats.get("turnover") not in (None, "")
-            else None
-        )
-        returns = (
-            float(stats["returns"]) if stats.get("returns") not in (None, "") else None
-        )
-        drawdown = (
-            float(stats["drawdown"])
-            if stats.get("drawdown") not in (None, "")
-            else None
-        )
-        is_submittable = bool(
-            submittable or all(by_col.get(col) == "PASS" for col in PASS_COLS)
-        )
+        turnover = float(stats["turnover"]) if stats.get("turnover") not in (None, "") else None
+        returns = float(stats["returns"]) if stats.get("returns") not in (None, "") else None
+        drawdown = float(stats["drawdown"]) if stats.get("drawdown") not in (None, "") else None
+        is_submittable = bool(submittable or all(by_col.get(col) == "PASS" for col in PASS_COLS))
         cols = (
             SIM_KEY_COLS
             + (

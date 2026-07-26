@@ -194,8 +194,7 @@ def api_status() -> dict:
     mining_sessions = [
         s
         for s in list_sessions(db_path, limit=1000)
-        if s.get("kind", "gp") in MINING_KINDS
-        and s.get("state") in CANDIDATE_PARENT_STATES
+        if s.get("kind", "gp") in MINING_KINDS and s.get("state") in CANDIDATE_PARENT_STATES
     ]
     open_cand = sum(
         len(
