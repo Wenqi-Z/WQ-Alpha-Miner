@@ -62,9 +62,6 @@ agent:
   model: gpt-5.1        # override with e.g. gpt-5 when available
   max_iterations: 10   # valid (non-error) iterations per candidate
   max_sim_errors: 20   # safety bound on uncounted sim-error retries per candidate
-  candidate_filter:
-    min_sharpe: 1.0    # strict >
-    min_fitness: 0.8   # strict >
   allow_expression_rewrite: true
   allow_setting_tuning: true   # decay, truncation, neutralization
   tuning_ranges:
@@ -75,6 +72,12 @@ agent:
     tracing: true
     project: wq-alpha-mining
     # LANGSMITH_API_KEY read from .env
+
+# Live triage thresholds (read on each candidates/status request).
+# ABS(sharpe) > min_sharpe AND ABS(fitness) > min_fitness.
+candidate_filter:
+  min_sharpe: 1.15
+  min_fitness: 0.9
 
 features:
   - open

@@ -103,7 +103,7 @@ def _session_summary_row(s: dict, db_path: Path) -> dict:
     best_sharpe = max((abs(a.get("sharpe") or 0) for a in alphas), default=0.0)
     best_fit = max((abs(a.get("fitness") or 0) for a in alphas), default=0.0)
     config = json.loads(s.get("config_json") or "{}")
-    eligible = _eligible_alphas(db_path, sid, config, kind=kind)
+    eligible = _eligible_alphas(db_path, sid, kind=kind)
     simulation = config.get("simulation", {})
     region = simulation.get("region", "")
     universe = simulation.get("universe", "")
@@ -131,9 +131,10 @@ def _session_summary_row(s: dict, db_path: Path) -> dict:
 
 
 def _eligible_alphas(
-    db_path: Path, session_id: str, config: dict, *, kind: str = "gp"
+    db_path: Path, session_id: str, *, kind: str = "gp"
 ) -> list[dict]:
-    filt = config.get("agent", {}).get("candidate_filter", {})
+    # Live config.yaml — triage thresholds are ops settings, not frozen per session.
+    filt = load_config(CONFIG_PATH).get("candidate_filter", {})
     alphas = get_session_alphas(
         db_path,
         session_id,
@@ -201,7 +202,6 @@ def api_status() -> dict:
             _eligible_alphas(
                 db_path,
                 s["id"],
-                json.loads(s.get("config_json") or "{}"),
                 kind=s.get("kind", "gp"),
             )
         )
@@ -298,7 +298,7 @@ def api_session_detail(session_id: str) -> dict:
     gp_cfg = cfg.get("gp", {})
     sim_cfg = cfg.get("simulation", {})
     generations = int(gp_cfg.get("generations", 5))
-    eligible_ids = {r["alpha_id"] for r in _eligible_alphas(db_path, session_id, cfg, kind=kind)}
+    eligible_ids = {r["alpha_id"] for r in _eligible_alphas(db_path, session_id, kind=kind)}
     improvement_states = _improvement_states(db_path)
     alpha_rows = []
     for a in sorted(
@@ -362,7 +362,7 @@ def api_candidates() -> dict:
         config = json.loads(session.get("config_json") or "{}")
         simulation = config.get("simulation", {})
         items = []
-        for alpha in _eligible_alphas(db_path, sid, config, kind=kind):
+        for alpha in _eligible_alphas(db_path, sid, kind=kind):
             status = improvement_states.get(alpha["alpha_id"], "open")
             items.append(
                 {
@@ -420,10 +420,9 @@ def api_improve_candidate(session_id: str, alpha_id: str) -> dict:
         )
     if session_is_running(get_active_session(db_path, kind="improve")):
         raise HTTPException(409, "Improvement job already running")
-    config = json.loads(parent.get("config_json") or "{}")
     eligible_ids = {
         alpha["alpha_id"]
-        for alpha in _eligible_alphas(db_path, session_id, config, kind=parent.get("kind", "gp"))
+        for alpha in _eligible_alphas(db_path, session_id, kind=parent.get("kind", "gp"))
     }
     if alpha_id not in eligible_ids:
         raise HTTPException(400, "Alpha does not meet candidate thresholds")

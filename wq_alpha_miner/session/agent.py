@@ -623,8 +623,7 @@ if __name__ == "__main__":
     config = yaml.safe_load(config_path.read_text())
     client = CachedWQClient(config_path=config_path)
     db_path = client.db_path
-    cfg_agent = config.get("agent", {})
-    filt = cfg_agent.get("candidate_filter", {})
+    filt = config.get("candidate_filter", {})
 
     session = get_active_session(db_path) or list_sessions(db_path, limit=1)[0]
     session_id = session["id"]

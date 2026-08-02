@@ -112,9 +112,10 @@ gp:
 
 agent:
   model: gpt-4o
-  candidate_filter:
-    min_sharpe: 1.0      # strict >
-    min_fitness: 0.8     # strict >
+
+candidate_filter:
+  min_sharpe: 1.0      # strict >
+  min_fitness: 0.8     # strict >
 ```
 
 ## Project structure
