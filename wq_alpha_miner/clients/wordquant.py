@@ -35,7 +35,9 @@ class WQClient:
         email = os.environ.get("WQ_EMAIL")
         password = os.environ.get("WQ_PASSWORD")
         if not email or not password:
-            raise OSError("WQ_EMAIL and WQ_PASSWORD must be set in the environment or in .env")
+            raise OSError(
+                "WQ_EMAIL and WQ_PASSWORD must be set in the environment or in .env"
+            )
         self._email = email
         self._password = password
         self._cookie_path = Path(
@@ -239,13 +241,15 @@ class WQClient:
         Returns:
         ['TOP2000', 'TOP3000', ...]
         """
-        settings = self._options(f"{BASE}/simulations")["actions"]["POST"]["settings"]["children"]
+        settings = self._options(f"{BASE}/simulations")["actions"]["POST"]["settings"][
+            "children"
+        ]
         for setting in settings.values():
             if setting.get("label") != "Universe":
                 continue
-            region_universes = setting["choices"]["instrumentType"][instrument_type]["region"][
-                region
-            ]
+            region_universes = setting["choices"]["instrumentType"][instrument_type][
+                "region"
+            ][region]
             return [u["value"] if isinstance(u, dict) else u for u in region_universes]
         return []
 
@@ -267,11 +271,15 @@ class WQClient:
         language: str = "FASTEXPR",
         wait: bool = True,
         poll_interval: float = 60.0,
+        timeout: float = 1800.0,
     ) -> str | None:
         """
         POST a simulation. If wait=True, blocks until complete and returns alpha_id.
         If wait=False, returns the simulation progress URL.
+
+        timeout: max seconds to wait for a concurrent slot + poll completion.
         """
+        deadline = time.monotonic() + timeout
         payload = {
             "type": "REGULAR",
             "regular": code,
@@ -296,8 +304,11 @@ class WQClient:
             body = r.json() if r.content else {}
             if body.get("detail") == "CONCURRENT_SIMULATION_LIMIT_EXCEEDED":
                 wait_s = float(r.headers.get("Retry-After", 15))
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError(f"Simulation timed out after {timeout:.0f}s waiting for slot")
                 logger.warning("Concurrent sim limit — retrying in %.0fs", wait_s)
-                time.sleep(wait_s)
+                time.sleep(min(wait_s, remaining))
                 return self.simulate(
                     code=code,
                     region=region,
@@ -311,6 +322,7 @@ class WQClient:
                     language=language,
                     wait=wait,
                     poll_interval=poll_interval,
+                    timeout=deadline - time.monotonic(),
                 )
             raise RuntimeError(f"No Location header: {r.content}")
         logger.info(f"Simulation queued: {progress_url}")
@@ -318,11 +330,20 @@ class WQClient:
         if not wait:
             return progress_url
 
-        return self._poll_simulation(progress_url, poll_interval)
+        return self._poll_simulation(
+            progress_url, poll_interval, timeout=deadline - time.monotonic()
+        )
 
-    def _poll_simulation(self, progress_url: str, interval: float = 30.0) -> str:
+    def _poll_simulation(
+        self, progress_url: str, interval: float = 30.0, timeout: float = 1800.0
+    ) -> str:
         """Block until simulation finishes; return alpha_id."""
+        deadline = time.monotonic() + timeout
         while True:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"Simulation timed out after {timeout:.0f}s: {progress_url}"
+                )
             r = self._get(progress_url)
 
             body = r.json()
@@ -332,7 +353,7 @@ class WQClient:
             if "message" in body and "progress" not in body:
                 raise RuntimeError(f"Simulation failed: {body['message']}")
 
-            time.sleep(interval)
+            time.sleep(min(interval, max(0.0, deadline - time.monotonic())))
 
     # ------------------------------------------------------------------
     # Alphas
@@ -442,7 +463,9 @@ class WQClient:
             try:
                 r = self.session.get(url, **kwargs)
             except requests.exceptions.ConnectionError as exc:
-                logger.warning("GET connection error (%s), retrying in %ds", exc, backoff)
+                logger.warning(
+                    "GET connection error (%s), retrying in %ds", exc, backoff
+                )
                 time.sleep(backoff)
                 backoff = min(backoff * 2, 60)
                 continue
@@ -468,7 +491,9 @@ class WQClient:
             try:
                 r = self.session.post(url, **kwargs)
             except requests.exceptions.ConnectionError as exc:
-                logger.warning("POST connection error (%s), retrying in %ds", exc, backoff)
+                logger.warning(
+                    "POST connection error (%s), retrying in %ds", exc, backoff
+                )
                 time.sleep(backoff)
                 backoff = min(backoff * 2, 60)
                 continue
