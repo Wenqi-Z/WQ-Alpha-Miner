@@ -161,9 +161,7 @@ def _build_system_prompt(state: AgentState) -> str:
     tr = state["tuning_ranges"]
     decay_range = tr.get("decay", [0, 512])
     trunc_range = tr.get("truncation", [0.0, 0.15])
-    neut_options = tr.get(
-        "neutralization", ["NONE", "MARKET", "SECTOR", "INDUSTRY", "SUBINDUSTRY"]
-    )
+    neut_options = tr.get("neutralization", ["NONE", "MARKET", "SECTOR", "INDUSTRY", "SUBINDUSTRY"])
 
     sim = state["sim_settings"]
 
@@ -255,9 +253,7 @@ def _build_human_prompt(state: AgentState) -> str:
         lines.append(f"LAST ATTEMPT FAILED with error: {last['error_msg']}")
         lines.append("Propose a different expression that avoids this error.")
     elif not last:
-        lines.append(
-            "First iteration — analyse the base alpha and propose an improvement."
-        )
+        lines.append("First iteration — analyse the base alpha and propose an improvement.")
 
     ops = state.get("operators") or []
     n = min(_N_SAMPLED_OPERATORS, len(ops))
@@ -270,9 +266,7 @@ def _build_human_prompt(state: AgentState) -> str:
         )
         lines.append(_format_operators(sampled))
     else:
-        lines.append(
-            "No operators available — improve using only FASTEXPR rules above."
-        )
+        lines.append("No operators available — improve using only FASTEXPR rules above.")
 
     lines.append("")
     lines.append(
@@ -340,9 +334,7 @@ def _make_evaluate_node(
         sim_settings = state["sim_settings"]
 
         eff_decay = (
-            proposed_decay
-            if proposed_decay is not None
-            else int(sim_settings.get("decay", 6))
+            proposed_decay if proposed_decay is not None else int(sim_settings.get("decay", 6))
         )
         eff_truncation = (
             proposed_truncation

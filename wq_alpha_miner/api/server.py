@@ -130,9 +130,7 @@ def _session_summary_row(s: dict, db_path: Path) -> dict:
     }
 
 
-def _eligible_alphas(
-    db_path: Path, session_id: str, *, kind: str = "gp"
-) -> list[dict]:
+def _eligible_alphas(db_path: Path, session_id: str, *, kind: str = "gp") -> list[dict]:
     # Live config.yaml — triage thresholds are ops settings, not frozen per session.
     filt = load_config(CONFIG_PATH).get("candidate_filter", {})
     alphas = get_session_alphas(
