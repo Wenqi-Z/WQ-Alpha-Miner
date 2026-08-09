@@ -18,6 +18,10 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "pytest>=9.1.1",
+    "gymnasium>=0.29",
+    "stable-baselines3>=2.3",
+    "sb3-contrib>=2.3",
+    "torch>=2.2",
 ]
 
 [dependency-groups]
@@ -41,6 +45,17 @@ ignore = ["E501"]  # formatter owns line length; E501 fights docstring examples
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
 
+# Prefer CPU torch wheels (no CUDA) — this machine has no usable GPU.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
 [tool.ruff.lint.per-file-ignores]
 # Vendored GP engine: format + import-sort only, no semantic/lint churn
 "wq_alpha_miner/gp_miner/*" = ["E", "F", "W", "UP", "B", "I002"]
+# Vendored RL engine (star imports + leftover unused imports in policy.py)
+"wq_alpha_miner/rl_miner/*" = ["E", "F", "W", "UP", "B", "I002"]

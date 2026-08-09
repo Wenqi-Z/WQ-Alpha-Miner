@@ -27,6 +27,7 @@ from wq_alpha_miner.session.jobs import (
     MINING_KINDS,
     fmt_duration,
     get_auto_restart,
+    is_alive,
     live_duration,
     maybe_auto_restart_mining,
     mining_engine,
@@ -169,12 +170,15 @@ def _improvement_states(db_path: Path) -> dict[str, str]:
 @app.on_event("startup")
 def startup() -> None:
     CachedWQClient(config_path=CONFIG_PATH)
-    init_db(_db())
-    # auto_restart is persisted on disk (db/ui_state.json) so it survives across
-    # a single server session's polling, but it must not survive a backend
-    # restart — otherwise mining would auto-spawn on boot with no button click.
-    set_auto_restart(False)
-    # Background loop chains sessions while auto_restart is on, even with no UI.
+    db_path = _db()
+    init_db(db_path)
+    # auto_restart must not survive a backend restart when idle — otherwise
+    # mining would auto-spawn on boot with no button click.  But a long-lived
+    # worker (typical for RL) can outlive a uvicorn reload; if one is still
+    # alive, keep chaining so the next session starts when it finishes.
+    active = get_active_session(db_path, kind=mining_engine())
+    live_mining = bool(active and session_is_running(active) and is_alive(active.get("pid")))
+    set_auto_restart(live_mining)
     start_mining_supervisor()
 
 
@@ -322,11 +326,14 @@ def api_session_detail(session_id: str) -> dict:
                 "submit_ready": bool(a.get("submittable")),
             }
         )
-    progress = sorted([abs(a.get("sharpe") or 0) for a in alphas if a.get("sharpe") is not None])
+    # alphas is ordered by cached_at, so this is best-so-far over the session —
+    # one point per evaluated alpha, engine-agnostic (GP generations / RL episodes).
     cumulative_best = []
     best = 0.0
-    for v in progress:
-        best = max(best, v)
+    for a in alphas:
+        if a.get("sharpe") is None:
+            continue
+        best = max(best, abs(a["sharpe"]))
         cumulative_best.append(round(best, 3))
     return {
         "session": s,
@@ -342,7 +349,7 @@ def api_session_detail(session_id: str) -> dict:
             "generations": generations,
         },
         "alphas": alpha_rows,
-        "fitness_progress": cumulative_best[-20:] if cumulative_best else [],
+        "fitness_progress": cumulative_best,
     }
 
 

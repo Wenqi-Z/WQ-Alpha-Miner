@@ -52,7 +52,7 @@ export function SessionDetail() {
       >
         <div className="panel">
           <div className="panel-hd">
-            <h3>Best Fitness per Generation</h3>
+            <h3>Best Sharpe So Far</h3>
           </div>
           <div className="panel-bd" style={{ padding: 16 }}>
             <LineChart values={data.fitness_progress} />

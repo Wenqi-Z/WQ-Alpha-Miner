@@ -6,9 +6,10 @@ A mining engine generates alpha expressions and evaluates them via the WQ simula
 
 ## Features
 
-- **Mining** — samples WQ dataset categories, evolves alpha expressions with a Genetic
-  Programming engine (`SymbolicTransformer` + FASTEXPR operators), and streams live
-  Sharpe/Fitness stats to the UI one generation at a time.
+- **Mining** — samples WQ dataset categories, evolves alpha expressions with either a
+  Genetic Programming engine (`SymbolicTransformer`) or an RL engine (`MaskablePPO` +
+  FASTEXPR operators), selectable via `mining.engine`, and streams live Sharpe/Fitness
+  stats to the UI.
 - **Candidates** — alphas above configurable Sharpe/Fitness thresholds, ready for review or
   LLM improvement.
 - **Deep-agent refinement** — a LangGraph agent (`propose → evaluate → decide`) rewrites
@@ -100,7 +101,7 @@ Everything tunable lives in `config.yaml`. Key sections:
 
 ```yaml
 mining:
-  engine: gp            # gp | rl (rl is a placeholder, not implemented yet)
+  engine: gp            # gp | rl
 
 simulation:              # fixed for all sessions
   region: USA
@@ -109,6 +110,10 @@ simulation:              # fixed for all sessions
 gp:
   population_size: 20
   generations: 5
+
+rl:
+  max_simulations: 250
+  max_features: 30
 
 agent:
   model: gpt-4o
@@ -126,12 +131,13 @@ WQ-Alpha-Miner/
 │   ├── api/server.py        # FastAPI backend + serves frontend/dist SPA
 │   ├── clients/              # WQ Brain REST client + simulation cache
 │   ├── gp_miner/              # Genetic Programming engine
+│   ├── rl_miner/              # RL expression builder + MaskablePPO policy
 │   └── session/
 │       ├── store.py          # SQLite data access layer
 │       ├── sampling.py       # Category/dataset sampling
 │       ├── agent.py          # LangGraph deep-agent
 │       ├── gp_worker.py      # GP mining session (subprocess entry point)
-│       ├── rl_worker.py      # RL mining session (placeholder)
+│       ├── rl_worker.py      # RL mining session (subprocess entry point)
 │       ├── improve_worker.py # LLM improvement job
 │       └── jobs.py           # Subprocess spawn/stop + auto-restart
 ├── frontend/                 # React + Vite + TypeScript UI
@@ -151,19 +157,19 @@ WQ-Alpha-Miner/
 ## Session lifecycle
 
 ```
-PENDING → (SAMPLING → GP_RUNNING | REFINING) → COMPLETED
-                                            ↘ STOPPING → STOPPED
+PENDING → (SAMPLING → GP_RUNNING | RL_RUNNING | REFINING) → COMPLETED
+                                                         ↘ STOPPING → STOPPED
 (any stage) → FAILED
 ```
 
 A graceful stop sets `stop_requested` on the session row; the worker finishes its current
-unit of work (one GP generation, or the in-flight refinement) before transitioning to
-`STOPPED`. Improvement can only be launched once its parent mining session is `COMPLETED`.
+unit of work (one GP generation, one RL episode, or the in-flight refinement) before
+transitioning to `STOPPED`. Improvement can only be launched once its parent mining
+session is `COMPLETED`.
 
 ## Planned features
 
-- [ ] **RL mining** — replace the `rl_worker` placeholder with a real reinforcement-learning
-  engine selectable via `mining.engine: rl`.
+- [x] **RL mining** — `MaskablePPO` engine selectable via `mining.engine: rl`.
 - [ ] **Advanced deep-agent improver** — richer refinement loops (multi-candidate search,
   better operator/field sampling, stronger failure diagnosis) beyond the current
   `propose → evaluate → decide` pass.
