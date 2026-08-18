@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import math
+
 import gymnasium as gym
 import torch
-from torch import nn, Tensor
 import torch.nn.functional as F
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from torch import Tensor, nn
 
 
 class PositionalEncoding(nn.Module):

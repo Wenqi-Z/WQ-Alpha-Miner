@@ -95,6 +95,17 @@ Workers can also be run directly, e.g. for headless testing:
 uv run python -m wq_alpha_miner.session.gp_worker --config config.yaml
 ```
 
+**Lint** — same as CI (`.github/workflows/ci.yml`). Ruff lives in the `dev` group:
+
+```bash
+uv sync --group dev
+
+uv run ruff check .            # lint (isort, unused imports, …)
+uv run ruff format --check .   # format check
+uv run ruff check --fix .      # auto-fix (e.g. I001 import order)
+uv run ruff format .           # apply formatting
+```
+
 ## Configuration
 
 Everything tunable lives in `config.yaml`. Key sections:
