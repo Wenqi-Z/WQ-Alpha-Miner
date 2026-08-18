@@ -3,8 +3,7 @@ database:
 
 mining:
   # Which worker session/jobs.py spawns for a mining session.
-  # rl is a placeholder — not implemented yet (see session/rl_worker.py).
-  engine: gp  # gp | rl
+  engine: rl  # gp | rl
 
 simulation:
   instrument_type: EQUITY
@@ -56,6 +55,24 @@ gp:
   verbose: 0
   random_state: 42
   log_pct: 0.3
+
+rl:
+  max_simulations: 250   # budget of new (cache-miss) WQ sims per session
+  max_features: 30       # cap on sampled fields entering the token vocabulary
+  max_expr_length: 20
+  reward_per_step: 0.0
+  constants: [1, 2, 5, 10]
+  n_steps: 64            # MaskablePPO
+  batch_size: 64
+  gamma: 1.0
+  ent_coef: 0.01
+  learning_rate: 0.0003
+  n_layers: 2            # LSTMSharedNet
+  d_model: 64
+  dropout: 0.1
+  device: cpu
+  random_state: 42
+  verbose: 0
 
 agent:
   provider: openai

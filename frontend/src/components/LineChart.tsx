@@ -62,7 +62,7 @@ export function LineChart({
             dataKey="value"
             stroke={color}
             strokeWidth={2}
-            dot={{ r: 3, fill: color }}
+            dot={values.length <= 30 ? { r: 3, fill: color } : false}
             activeDot={{ r: 4 }}
           />
         </ComposedChart>

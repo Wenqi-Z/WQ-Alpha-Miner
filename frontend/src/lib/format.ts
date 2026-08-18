@@ -12,7 +12,7 @@ export function shortId(id: string, n = 14): string {
 
 export function uiState(state: string): string {
   const st = state.toLowerCase()
-  if (['sampling', 'gp_running', 'refining'].includes(st)) return 'running'
+  if (['sampling', 'gp_running', 'rl_running', 'refining'].includes(st)) return 'running'
   if (st === 'stopping') return 'queued'
   return st
 }
